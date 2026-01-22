@@ -53,6 +53,7 @@ requires = ["buildpkg>=0"]
         cache,
         cache_ttl_s: int,
         refresh: bool,
+        **kwargs,
     ):
         """
         替换真实 resolver，返回混合场景（成功/404/网络错误）。
