@@ -42,9 +42,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    environment:
-      name: pypi
-      url: https://pypi.org/project/uv-lens/
     steps:
       - name: Download dist artifacts
         uses: actions/download-artifact@v4
