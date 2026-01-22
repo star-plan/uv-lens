@@ -1,6 +1,7 @@
-def main():
-    print("Hello from uv-lens!")
+from __future__ import annotations
+
+from uv_lens.cli import main
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
