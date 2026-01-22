@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from typing import Any, Callable
 
 from uv_lens.cache import CacheDB, CacheEntry, index_scope_key
 from uv_lens.index_client import IndexSettings, PackageLookupResult, create_async_client, fetch_latest_from_indexes
@@ -39,6 +40,8 @@ async def resolve_latest_versions(
     cache: CacheDB | None,
     cache_ttl_s: int,
     refresh: bool,
+    on_fetch_start: Callable[[int], Any] | None = None,
+    on_fetch_complete: Callable[[], Any] | None = None,
 ) -> tuple[dict[str, PackageLookupResult], ResolveStats]:
     """
     并行解析多个包的最新版本，支持用户目录全局缓存与增量更新。
@@ -61,6 +64,9 @@ async def resolve_latest_versions(
         cache_hits += 1
         results[name] = _result_from_cache(name, entry)
 
+    if on_fetch_start:
+        on_fetch_start(len(to_fetch))
+
     sem = asyncio.Semaphore(max(1, max_concurrency))
     async with create_async_client(settings) as client:
 
@@ -77,6 +83,8 @@ async def resolve_latest_versions(
                         not_found=res.not_found,
                         error=res.error,
                     )
+                if on_fetch_complete:
+                    on_fetch_complete()
 
         await asyncio.gather(*(worker(n) for n in to_fetch))
 

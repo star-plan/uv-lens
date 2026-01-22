@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import Any, Callable
 
 from packaging.version import Version
+from rich.console import Console
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 
 from uv_lens.cache import CacheDB, default_cache_path
 from uv_lens.config import AppConfig
@@ -36,7 +39,13 @@ def _all_items_from_pyproject(pyproject_path: Path) -> list[DependencyItem]:
     return _collect_dependency_items([deps.project, dev_items, opt_items, deps.build_system])
 
 
-async def check_pyproject(pyproject_path: Path, *, config: AppConfig) -> Report:
+async def check_pyproject(
+    pyproject_path: Path,
+    *,
+    config: AppConfig,
+    on_fetch_start: Callable[[int], Any] | None = None,
+    on_fetch_complete: Callable[[], Any] | None = None,
+) -> Report:
     """
     检查 pyproject.toml 中的依赖版本并生成报告。
     """
@@ -66,6 +75,8 @@ async def check_pyproject(pyproject_path: Path, *, config: AppConfig) -> Report:
             cache=cache_db,
             cache_ttl_s=config.cache_ttl_s,
             refresh=config.refresh,
+            on_fetch_start=on_fetch_start,
+            on_fetch_complete=on_fetch_complete,
         )
 
         report_items: list[ReportItem] = []
@@ -128,4 +139,40 @@ def run_check(pyproject_path: Path, *, config: AppConfig) -> Report:
     """
     同步入口：运行依赖检查（内部使用 asyncio）。
     """
-    return asyncio.run(check_pyproject(pyproject_path, config=config))
+    console = Console(stderr=True)
+    state = {"progress": None, "task_id": None}
+
+    def on_start(total: int) -> None:
+        if total > 0:
+            progress = Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                "({task.completed}/{task.total})",
+                console=console,
+                transient=True,
+            )
+            progress.start()
+            task_id = progress.add_task("查询 PyPI...", total=total)
+            state["progress"] = progress
+            state["task_id"] = task_id
+
+    def on_complete() -> None:
+        progress = state["progress"]
+        task_id = state["task_id"]
+        if progress and task_id is not None:
+            progress.advance(task_id)
+
+    try:
+        return asyncio.run(
+            check_pyproject(
+                pyproject_path,
+                config=config,
+                on_fetch_start=on_start,
+                on_fetch_complete=on_complete,
+            )
+        )
+    finally:
+        if state["progress"]:
+            state["progress"].stop()
