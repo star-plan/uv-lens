@@ -4,6 +4,20 @@
 
 ### 运行方式
 
+- 发布后（推荐，无需 clone）：
+
+```powershell
+uvx uv-lens
+uvx uv-lens check
+uvx uv-lens check --format json
+uvx uv-lens check --format md --output report.md
+uvx uv-lens export-uv
+uvx uv-lens update
+uvx uv-lens update --write
+```
+
+- 从源码运行（开发/本地测试）：
+
 - 直接进入 TUI（无参数）：
 
 ```powershell
@@ -66,3 +80,16 @@ cache_ttl_s = 86400
 pin = "compatible"
 exclude = ["setuptools"]
 ```
+
+### 发布到 PyPI
+
+本仓库包含 GitHub Actions 工作流，会在打 tag（`v*`）时自动构建并发布到 PyPI。
+
+- PyPI Trusted Publishing（推荐）：
+  - 在 PyPI 项目设置里添加 Trusted Publisher，指向本仓库与工作流文件：`.github/workflows/publish.yml`
+  - 无需在 GitHub Secrets 里保存 PyPI Token
+
+- 发版步骤：
+  - 更新版本号：`pyproject.toml` 的 `version` 与 `src/uv_lens/__init__.py` 的 `__version__`
+  - 创建并推送 tag：`vX.Y.Z`（例如 `v0.1.0`）
+  - Actions 自动跑测试、构建 `dist/` 并发布

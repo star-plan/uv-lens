@@ -1,9 +1,16 @@
 [project]
 name = "uv-lens"
 version = "0.1.0"
-description = "Add your description here"
+description = "解析 pyproject.toml 依赖并查询最新稳定版本，输出升级建议与 uv add 命令"
 readme = "README.md"
 requires-python = ">=3.12"
+keywords = ["uv", "pypi", "dependencies", "tui", "cli"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "httpx>=0.27",
     "packaging>=24",
