@@ -130,31 +130,41 @@ class UvLensApp(App[None]):
         await self._load_report(refresh=True)
 
     async def action_export_uv(self) -> None:
+        """
+        导出 uv add 命令到弹窗预览（不阻塞等待关闭）。
+        """
         if self._report is None:
             return
         pin: PinMode = "exact"
         commands = generate_uv_add_commands(self._report, pin=pin, use_dev_flag=True)
         text = "\n".join(commands) + ("\n" if commands else "")
-        ok = await self.push_screen_wait(TextPreview("uv add 命令（Enter 关闭）", text, confirm_label="关闭"))
-        _ = ok
+        self.push_screen(TextPreview("uv add 命令（Enter 关闭）", text, confirm_label="关闭"))
 
     async def action_update_preview(self) -> None:
+        """
+        预览并确认写回 pyproject.toml 的更新。
+        """
         if self._report is None:
             return
         pin: PinMode = "compatible"
         changes = apply_updates_to_pyproject(self._pyproject_path, report=self._report, pin=pin, write=False)
         if not changes:
-            await self.push_screen_wait(TextPreview("更新预览", "没有可写回的变更。\n", confirm_label="关闭"))
+            self.push_screen(TextPreview("更新预览", "没有可写回的变更。\n", confirm_label="关闭"))
             return
         preview = "\n".join(
             f"{c.kind.value}:{c.group} {c.name} {c.before} -> {c.after}" for c in changes
         )
-        confirm = await self.push_screen_wait(
-            TextPreview("更新预览（Enter 写回 / Esc 取消）", preview + "\n", confirm_label="写回")
-        )
-        if confirm:
+        screen = TextPreview("更新预览（Enter 写回 / Esc 取消）", preview + "\n", confirm_label="写回")
+
+        async def apply_and_refresh() -> None:
             apply_updates_to_pyproject(self._pyproject_path, report=self._report, pin=pin, write=True)
             await self._load_report(refresh=True)
+
+        def on_dismissed(confirm: bool) -> None:
+            if confirm:
+                self.run_worker(apply_and_refresh(), exclusive=True)
+
+        self.push_screen(screen, callback=on_dismissed)
 
 
 def run_tui(pyproject_path: Path) -> int:
